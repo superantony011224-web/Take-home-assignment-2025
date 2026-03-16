@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { upload } from "@vercel/blob/client";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import Head from "next/head";
@@ -11,6 +10,15 @@ import { patientFormSchema, type PatientFormData } from "@/lib/schema";
 import { FileUpload } from "@/components/FileUpload";
 import { createApolloClient } from "@/lib/apollo-client";
 import { CREATE_PATIENT_PROFILE } from "@/lib/graphql/queries";
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function IntakePage() {
   const [submitting, setSubmitting] = useState(false);
@@ -25,21 +33,13 @@ export default function IntakePage() {
     resolver: zodResolver(patientFormSchema),
   });
 
-  async function uploadFile(file: File): Promise<string> {
-    const blob = await upload(file.name, file, {
-      access: "public",
-      handleUploadUrl: "/api/upload",
-    });
-    return blob.url;
-  }
-
   const onSubmit = async (data: PatientFormData) => {
     setSubmitting(true);
     try {
-      // Upload both files in parallel
+      // Convert both files to base64 in parallel
       const [insuranceCardUrl, photoIdUrl] = await Promise.all([
-        uploadFile(data.insuranceCard),
-        uploadFile(data.photoId),
+        fileToBase64(data.insuranceCard),
+        fileToBase64(data.photoId),
       ]);
 
       // Call GraphQL mutation
